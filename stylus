@@ -103,6 +103,48 @@
     outline: none !important;
 }
 
+/* ===== FIX COLUMN ALIGNMENT WHEN RATINGS HIDDEN ===== */
+
+/* When Ratings column is hidden, make sure Pts column aligns properly */
+.rubric_table {
+    table-layout: auto !important;
+}
+
+/* Ensure the table structure stays intact */
+.rubric_table thead th:nth-child(3),
+.rubric_table tbody td:nth-child(3) {
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+/* Force proper display when column is hidden */
+body:not(.show-comments) .rubric_table {
+    display: table !important;
+}
+
+body:not(.show-comments) .rubric_table thead,
+body:not(.show-comments) .rubric_table tbody {
+    display: table-row-group !important;
+}
+
+body:not(.show-comments) .rubric_table tr {
+    display: table-row !important;
+}
+
+body:not(.show-comments) .rubric_table th,
+body:not(.show-comments) .rubric_table td {
+    display: table-cell !important;
+}
+
+/* But keep the 2nd column (Ratings) hidden */
+body:not(.show-comments) .rubric_table th:nth-child(2),
+body:not(.show-comments) .rubric_table td:nth-child(2) {
+    display: none !important;
+    width: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
 /* ===== ULTRA COMPACT RUBRIC TABLE ===== */
 
 /* Old rubric table styling - very compact rows */
