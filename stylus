@@ -1,0 +1,580 @@
+/* SpeedGrader Ultra-Compact Layout Enhancement */
+/* Apply to: https://canvas.uw.edu/courses/*/gradebook/speed_grader* */
+
+/* ===== RIGHT SIDEBAR ULTRA-COMPACT LAYOUT ===== */
+
+/* Make right sidebar scrollable and very compact */
+#rightside_inner,
+#right_side {
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+    background: #f5f5f5 !important;
+}
+
+/* Ultra-compact all content boxes */
+.content_box {
+    margin-bottom: 6px !important;
+    padding: 8px !important;
+    background: white !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+}
+
+/* ===== RUBRIC SECTION - ULTRA COMPACT ===== */
+
+/* Very compact rubric headers */
+#grading h2,
+.gradebookHeader--rightside {
+    font-size: 13px !important;
+    margin: 4px 0 !important;
+    padding: 6px 0 !important;
+    color: #4b2e83 !important;
+    border-bottom: 2px solid #4b2e83 !important;
+}
+
+/* React rubric table - ultra compact */
+.react-rubric-container {
+    font-size: 12px !important;
+}
+
+.react-rubric-cell {
+    padding: 4px 6px !important;
+}
+
+/* Compact rubric criteria labels */
+.react-rubric-cell .css-1cxejyn-view-flexItem label {
+    margin: 0 !important;
+}
+
+/* Stack rubric cells vertically for compact display */
+.react-rubric-cell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+}
+
+/* ===== GRADE INPUT FIELDS - ULTRA COMPACT ===== */
+
+/* Style React grade inputs - very compact */
+.react-rubric-cell input[type="text"],
+.css-1ylbheh-textInput {
+    border: 2px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 4px 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    transition: all 0.2s ease !important;
+    background: white !important;
+    width: 60px !important;
+    height: 28px !important;
+}
+
+.react-rubric-cell input[type="text"]:focus,
+.css-1ylbheh-textInput:focus {
+    border-color: #4b2e83 !important;
+    box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12) !important;
+    outline: none !important;
+    background: #fffef7 !important;
+}
+
+.react-rubric-cell input[type="text"]:hover,
+.css-1ylbheh-textInput:hover {
+    border-color: #999 !important;
+}
+
+/* Old rubric format inputs - compact */
+.criterion_points {
+    border: 2px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 4px 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    transition: all 0.2s ease !important;
+    width: 60px !important;
+    height: 28px !important;
+}
+
+.criterion_points:focus {
+    border-color: #4b2e83 !important;
+    box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12) !important;
+    outline: none !important;
+}
+
+/* ===== ULTRA COMPACT RUBRIC TABLE ===== */
+
+/* Old rubric table styling - very compact rows */
+.rubric_table {
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+    width: 100% !important;
+}
+
+.rubric_table thead {
+    background: linear-gradient(135deg, #4b2e83 0%, #5a3d94 100%) !important;
+    color: white !important;
+}
+
+.rubric_table th {
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+}
+
+.rubric_table td {
+    padding: 4px 6px !important;
+    vertical-align: middle !important;
+    line-height: 1.3 !important;
+}
+
+.rubric_table tbody tr {
+    border-bottom: 1px solid #eee !important;
+    height: auto !important;
+}
+
+.rubric_table tbody tr:hover {
+    background-color: #f8f9fa !important;
+}
+
+/* Force compact rows */
+.rubric_table tr {
+    height: 36px !important;
+    max-height: 36px !important;
+}
+
+/* Hide unnecessary rubric elements to save space */
+.long_description_holder,
+.threshold,
+.criterion_use_range_div,
+.editing.links,
+.saved_custom_rating_holder,
+.criterion_comments,
+.ratings {
+    display: none !important;
+}
+
+/* Ultra compact criterion descriptions */
+.criterion_description {
+    font-size: 12px !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
+}
+
+.description_title {
+    font-size: 12px !important;
+    color: #4b2e83 !important;
+    font-weight: 600 !important;
+    display: inline-block !important;
+}
+
+/* Compact points display */
+.points_form {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+}
+
+.points_form .editing {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.points_form span {
+    font-size: 10px !important;
+}
+
+/* ===== COMMENTS SECTION - COMPLETELY HIDDEN BY DEFAULT ===== */
+
+/* Hide the entire comment section at bottom */
+#add_a_comment,
+.content_box:has(#add_a_comment),
+#discussion,
+#comments {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Hide ALL comment textareas in rubric - AGGRESSIVE */
+textarea[data-selenium="criterion_comments_text"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+.css-1wajuig-textArea {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+}
+
+textarea[id^="TextArea_"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    opacity: 0 !important;
+}
+
+/* Hide parent divs containing comment textareas */
+div:has(> textarea[data-selenium="criterion_comments_text"]),
+div:has(> .css-1wajuig-textArea),
+label:has(> textarea[data-selenium="criterion_comments_text"]) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Hide "Comments" label and "Saved Comments" sections */
+div:has(textarea[data-selenium="criterion_comments_text"]) {
+    display: none !important;
+}
+
+/* Target by content - hide anything with "Comments" or "Saved Comments" */
+.rubric_table td > div:nth-child(1),
+.rubric_table td > div:nth-child(2) {
+    display: none !important;
+}
+
+/* Show only the points input column */
+.rubric_table td:nth-child(2) {
+    display: none !important;
+}
+
+/* Hide saved comments dropdowns in rubric */
+.saved_custom_rating_holder,
+select[class*="saved_custom_rating"],
+.custom_ratings_entry,
+div:contains("Saved Comments") {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Hide "Save this comment for reuse" checkbox */
+input[type="checkbox"][id*="save_criterion_message"],
+label[for*="save_criterion_message"],
+div:has(input[type="checkbox"][id*="save_criterion_message"]) {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* ===== When comments are shown (via toggle button) ===== */
+
+body.show-comments #add_a_comment,
+body.show-comments .content_box:has(#add_a_comment),
+body.show-comments #discussion,
+body.show-comments #comments {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+body.show-comments textarea[data-selenium="criterion_comments_text"],
+body.show-comments .css-1wajuig-textArea,
+body.show-comments textarea[id^="TextArea_"] {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    left: auto !important;
+    opacity: 1 !important;
+}
+
+body.show-comments div:has(> textarea[data-selenium="criterion_comments_text"]),
+body.show-comments div:has(> .css-1wajuig-textArea),
+body.show-comments label:has(> textarea[data-selenium="criterion_comments_text"]) {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+body.show-comments .saved_custom_rating_holder,
+body.show-comments .custom_ratings_entry {
+    display: block !important;
+    visibility: visible !important;
+}
+
+body.show-comments input[type="checkbox"][id*="save_criterion_message"],
+body.show-comments label[for*="save_criterion_message"] {
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+body.show-comments .rubric_table td:nth-child(2) {
+    display: table-cell !important;
+}
+
+/* Very compact comment textarea when shown */
+body.show-comments textarea[data-selenium="criterion_comments_text"],
+body.show-comments .css-1wajuig-textArea,
+body.show-comments textarea[id^="TextArea_"] {
+    min-height: 40px !important;
+    height: 40px !important;
+    max-height: 40px !important;
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+    border-radius: 4px !important;
+    border: 2px solid #ddd !important;
+    line-height: 1.2 !important;
+    resize: none !important;
+}
+
+body.show-comments textarea[data-selenium="criterion_comments_text"]:focus,
+body.show-comments .css-1wajuig-textArea:focus {
+    border-color: #4b2e83 !important;
+    box-shadow: 0 0 0 2px rgba(75, 46, 131, 0.08) !important;
+}
+
+/* Compact saved comments dropdown when shown */
+body.show-comments .saved_custom_rating,
+body.show-comments select {
+    font-size: 11px !important;
+    padding: 2px 4px !important;
+    height: 24px !important;
+}
+
+/* Hide comment labels to save space */
+.content_box h2 {
+    font-size: 12px !important;
+    margin: 4px 0 !important;
+    padding: 4px 0 !important;
+}
+
+/* ===== BUTTONS - COMPACT ===== */
+
+/* Save button styling - compact */
+.save_rubric_button,
+.Button--primary {
+    background: linear-gradient(135deg, #4b2e83 0%, #5a3d94 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    padding: 6px 12px !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    transition: all 0.2s ease !important;
+}
+
+.save_rubric_button:hover,
+.Button--primary:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15) !important;
+}
+
+/* Navigation buttons - compact */
+#next-student-button,
+#prev-student-button {
+    transition: all 0.2s ease !important;
+    border-radius: 6px !important;
+}
+
+#next-student-button:hover,
+#prev-student-button:hover {
+    transform: scale(1.05) !important;
+    background-color: rgba(75, 46, 131, 0.1) !important;
+}
+
+/* ===== HIDE UNNECESSARY ELEMENTS ===== */
+
+/* Hide rubric toggle buttons */
+.toggle_full_rubric,
+.hide_rubric_link {
+    display: none !important;
+}
+
+/* Hide verbose text to save space */
+.rubric_table .description_content {
+    max-width: 150px !important;
+}
+
+/* ===== OVERALL GRADE BOX - COMPACT ===== */
+
+#grading-box-extended {
+    border: 2px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 6px 8px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    height: 32px !important;
+}
+
+#grading-box-extended:focus {
+    border-color: #4b2e83 !important;
+    box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.08) !important;
+    outline: none !important;
+}
+
+#grading-box-points-possible {
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+}
+
+#grade_container {
+    margin-bottom: 6px !important;
+}
+
+/* ===== MAKE EVERYTHING VISIBLE ===== */
+
+/* Force rubric to always be visible */
+#rubric_full,
+#rubric_summary_container {
+    display: block !important;
+}
+
+/* Ensure compact spacing throughout */
+#rubric_assessments_list_and_edit_button_holder {
+    margin-bottom: 4px !important;
+}
+
+#rubric_assessments_select {
+    font-size: 11px !important;
+    height: 24px !important;
+    padding: 2px 4px !important;
+}
+
+/* ===== COMPACT COMMENT SECTION ===== */
+
+#add_a_comment {
+    padding: 6px !important;
+}
+
+#add_a_comment .ic-Action-header {
+    margin-top: 4px !important;
+}
+
+.attach_things {
+    gap: 4px !important;
+}
+
+.Button--small {
+    padding: 4px 6px !important;
+    font-size: 11px !important;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+
+#rightside_inner::-webkit-scrollbar {
+    width: 6px;
+}
+
+#rightside_inner::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#rightside_inner::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#rightside_inner::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ===== STACKED ROW LAYOUT FOR PROBLEMS ===== */
+
+/* Make each criterion a compact horizontal row */
+.criterion {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 4px 6px !important;
+    border-bottom: 1px solid #eee !important;
+}
+
+.criterion:hover {
+    background-color: #f8f9fa !important;
+}
+
+/* Criterion description takes minimal space */
+.criterion .criterion_description {
+    flex: 0 0 auto !important;
+    min-width: 80px !important;
+    max-width: 120px !important;
+    padding: 2px 4px !important;
+}
+
+/* Points input and display inline */
+.criterion .points_form {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+/* Compact the ratings column */
+.criterion td:nth-child(2) {
+    display: none !important;
+}
+
+/* Make the table more compact overall */
+.rubric_container {
+    margin-bottom: 8px !important;
+}
+
+/* Remove extra padding from rubric title */
+.rubric_title {
+    padding: 4px 6px !important;
+    font-size: 12px !important;
+    margin-bottom: 4px !important;
+}
+
+/* ===== ADDITIONAL SPACE SAVING ===== */
+
+/* Hide submission details to save space */
+#submission_details {
+    font-size: 11px !important;
+}
+
+#submission_details > div {
+    margin: 2px 0 !important;
+}
+
+/* Compact multiple submissions dropdown */
+#multiple_submissions {
+    font-size: 11px !important;
+}
+
+#multiple_submissions select {
+    height: 24px !important;
+    padding: 2px 4px !important;
+    font-size: 11px !important;
+}
+
+/* ===== SMOOTH ANIMATIONS ===== */
+
+* {
+    scroll-behavior: smooth !important;
+}
+
+/* ===== PROBLEM NUMBER BADGES ===== */
+
+/* Add visual problem numbers */
+.criterion::before {
+    content: attr(data-problem-number);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #4b2e83;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
