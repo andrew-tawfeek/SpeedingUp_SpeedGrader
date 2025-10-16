@@ -1,0 +1,1032 @@
+// ==UserScript==
+// @name         Canvas SpeedGrader Enhancement
+// @namespace    http://tampermonkey.net/
+// @version      5.0
+// @description  Add Gradescope-like features to Canvas SpeedGrader (React-compatible, silent saving)
+// @match        https://canvas.uw.edu/courses/*/gradebook/speed_grader*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    console.log('SpeedGrader Enhancement Script v5.0 loaded');
+
+    let pendingGrades = {};
+    let currentStudentId = null;
+
+    // Wait for page to fully load
+    function init() {
+        // Wait for React rubric to render
+        waitForElement('.react-rubric-cell input, .criterion_points, .save_rubric_button').then(() => {
+            console.log('Rubric detected!');
+            autoOpenRubric();
+            setupHotkeys();
+            setupAutoSave();
+            addCommentToggleButton();
+            hideComments(); // Force hide comments
+            showKeyboardHint();
+            trackCurrentStudent();
+            
+            // Keep monitoring for React re-renders
+            observeRubricChanges();
+        });
+    }
+
+    // Forcefully hide all comment boxes
+    function hideComments() {
+        console.log('Forcefully hiding comment boxes...');
+        
+        // Hide comment textareas
+        const commentTextareas = document.querySelectorAll('textarea[data-selenium="criterion_comments_text"], .css-1wajuig-textArea, textarea[id^="TextArea_"]');
+        commentTextareas.forEach(textarea => {
+            textarea.style.display = 'none';
+            textarea.style.visibility = 'hidden';
+            textarea.style.height = '0';
+            textarea.style.opacity = '0';
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            
+            // Hide parent containers
+            let parent = textarea.parentElement;
+            for (let i = 0; i < 5; i++) {
+                if (parent) {
+                    parent.style.display = 'none';
+                    parent.style.visibility = 'hidden';
+                    parent.style.height = '0';
+                    parent.style.overflow = 'hidden';
+                    parent = parent.parentElement;
+                }
+            }
+        });
+        
+        // Hide "Saved Comments" dropdowns
+        const savedCommentsSelects = document.querySelectorAll('select');
+        savedCommentsSelects.forEach(select => {
+            if (select.textContent.includes('Select') || select.closest('.saved_custom_rating_holder')) {
+                select.style.display = 'none';
+                if (select.parentElement) {
+                    select.parentElement.style.display = 'none';
+                }
+            }
+        });
+        
+        // AGGRESSIVELY hide "Save this comment for reuse" checkboxes
+        const saveCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+        saveCheckboxes.forEach(checkbox => {
+            // Check if it's a comment-related checkbox
+            if (checkbox.id.includes('save_criterion_message') || 
+                checkbox.id.includes('comment') ||
+                checkbox.nextSibling?.textContent?.includes('Save this comment') ||
+                checkbox.labels?.[0]?.textContent?.includes('Save this comment')) {
+                
+                checkbox.style.display = 'none';
+                checkbox.style.visibility = 'hidden';
+                checkbox.style.position = 'absolute';
+                checkbox.style.left = '-9999px';
+                
+                // Hide the label too
+                const label = checkbox.labels?.[0] || document.querySelector(`label[for="${checkbox.id}"]`);
+                if (label) {
+                    label.style.display = 'none';
+                    label.style.visibility = 'hidden';
+                    label.style.position = 'absolute';
+                    label.style.left = '-9999px';
+                }
+                
+                // Hide parent div
+                if (checkbox.parentElement) {
+                    const parentText = checkbox.parentElement.textContent;
+                    if (parentText.includes('Save this comment')) {
+                        checkbox.parentElement.style.display = 'none';
+                        checkbox.parentElement.style.visibility = 'hidden';
+                        checkbox.parentElement.style.height = '0';
+                    }
+                }
+            }
+        });
+        
+        // Hide any div containing "Save this comment for reuse" text
+        const allDivs = document.querySelectorAll('div');
+        allDivs.forEach(div => {
+            if (div.textContent.includes('Save this comment for reuse') && div.textContent.length < 100) {
+                div.style.display = 'none';
+                div.style.visibility = 'hidden';
+                div.style.height = '0';
+            }
+        });
+        
+        // Hide "Comments" and "Saved Comments" labels
+        const allLabels = document.querySelectorAll('label');
+        allLabels.forEach(label => {
+            const text = label.textContent.trim();
+            if (text === 'Comments' || text === 'Saved Comments' || text.includes('Save this comment')) {
+                label.style.display = 'none';
+                if (label.parentElement) {
+                    label.parentElement.style.display = 'none';
+                }
+            }
+        });
+        
+        // Hide the "Ratings" column header (th)
+        const ratingsHeaders = document.querySelectorAll('.rubric_table th');
+        ratingsHeaders.forEach(header => {
+            if (header.textContent.trim() === 'Ratings') {
+                header.style.display = 'none';
+                header.style.visibility = 'hidden';
+                header.style.width = '0';
+                header.style.padding = '0';
+                header.style.border = 'none';
+            }
+        });
+        
+        // Hide the entire Ratings column (all td cells in 2nd column)
+        const ratingsCells = document.querySelectorAll('.rubric_table td:nth-child(2), .rubric_table tbody td:nth-child(2)');
+        ratingsCells.forEach(cell => {
+            cell.style.display = 'none';
+            cell.style.visibility = 'hidden';
+            cell.style.width = '0';
+            cell.style.padding = '0';
+            cell.style.border = 'none';
+        });
+        
+        // Also try targeting by aria-label
+        const allHeaders = document.querySelectorAll('th');
+        allHeaders.forEach(header => {
+            if (header.getAttribute('aria-label') === 'criterion ratings' || 
+                header.textContent.includes('Ratings') ||
+                header.textContent.includes('Assessment')) {
+                header.style.display = 'none';
+            }
+        });
+        
+        // Hide any td with aria-label containing "ratings"
+        const allCells = document.querySelectorAll('td');
+        allCells.forEach(cell => {
+            const ariaLabel = cell.getAttribute('aria-label');
+            if (ariaLabel && ariaLabel.includes('ratings')) {
+                cell.style.display = 'none';
+                cell.style.visibility = 'hidden';
+                cell.style.width = '0';
+            }
+        });
+        
+        console.log('Hid', commentTextareas.length, 'comment textareas and Ratings column');
+    }
+
+    // Show all comment boxes
+    function showComments() {
+        console.log('Showing comment boxes...');
+        
+        // Show comment textareas
+        const commentTextareas = document.querySelectorAll('textarea[data-selenium="criterion_comments_text"], .css-1wajuig-textArea, textarea[id^="TextArea_"]');
+        commentTextareas.forEach(textarea => {
+            textarea.style.display = 'block';
+            textarea.style.visibility = 'visible';
+            textarea.style.height = '60px';
+            textarea.style.opacity = '1';
+            textarea.style.position = 'static';
+            textarea.style.left = 'auto';
+            
+            // Show parent containers - go up 5 levels
+            let parent = textarea.parentElement;
+            for (let i = 0; i < 5; i++) {
+                if (parent) {
+                    parent.style.display = 'block';
+                    parent.style.visibility = 'visible';
+                    parent.style.height = 'auto';
+                    parent.style.overflow = 'visible';
+                    parent = parent.parentElement;
+                }
+            }
+        });
+        
+        // Show "Saved Comments" dropdowns
+        const savedCommentsSelects = document.querySelectorAll('select');
+        savedCommentsSelects.forEach(select => {
+            if (select.textContent.includes('Select') || select.closest('.saved_custom_rating_holder')) {
+                select.style.display = 'block';
+                if (select.parentElement) {
+                    select.parentElement.style.display = 'block';
+                }
+            }
+        });
+        
+        // Show "Save this comment for reuse" checkboxes
+        const saveCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+        saveCheckboxes.forEach(checkbox => {
+            if (checkbox.id.includes('save_criterion_message') || 
+                checkbox.id.includes('comment') ||
+                checkbox.nextSibling?.textContent?.includes('Save this comment') ||
+                checkbox.labels?.[0]?.textContent?.includes('Save this comment')) {
+                
+                checkbox.style.display = 'inline-block';
+                checkbox.style.visibility = 'visible';
+                checkbox.style.position = 'static';
+                checkbox.style.left = 'auto';
+                
+                const label = checkbox.labels?.[0] || document.querySelector(`label[for="${checkbox.id}"]`);
+                if (label) {
+                    label.style.display = 'inline-block';
+                    label.style.visibility = 'visible';
+                    label.style.position = 'static';
+                    label.style.left = 'auto';
+                }
+                
+                if (checkbox.parentElement) {
+                    const parentText = checkbox.parentElement.textContent;
+                    if (parentText.includes('Save this comment')) {
+                        checkbox.parentElement.style.display = 'block';
+                        checkbox.parentElement.style.visibility = 'visible';
+                        checkbox.parentElement.style.height = 'auto';
+                    }
+                }
+            }
+        });
+        
+        // Show divs containing "Save this comment for reuse"
+        const allDivs = document.querySelectorAll('div');
+        allDivs.forEach(div => {
+            if (div.textContent.includes('Save this comment for reuse') && div.textContent.length < 100) {
+                div.style.display = 'block';
+                div.style.visibility = 'visible';
+                div.style.height = 'auto';
+            }
+        });
+        
+        // Show "Comments" and "Saved Comments" labels
+        const allLabels = document.querySelectorAll('label');
+        allLabels.forEach(label => {
+            const text = label.textContent.trim();
+            if (text === 'Comments' || text === 'Saved Comments' || text.includes('Save this comment')) {
+                label.style.display = 'block';
+                label.style.visibility = 'visible';
+                if (label.parentElement) {
+                    label.parentElement.style.display = 'block';
+                    label.parentElement.style.visibility = 'visible';
+                }
+            }
+        });
+        
+        // Show the "Ratings" column header
+        const ratingsHeaders = document.querySelectorAll('.rubric_table th');
+        ratingsHeaders.forEach(header => {
+            if (header.textContent.trim() === 'Ratings') {
+                header.style.display = 'table-cell';
+                header.style.visibility = 'visible';
+                header.style.width = 'auto';
+                header.style.padding = '';
+                header.style.border = '';
+            }
+        });
+        
+        // Show the Ratings column
+        const ratingsCells = document.querySelectorAll('.rubric_table td:nth-child(2), .rubric_table tbody td:nth-child(2)');
+        ratingsCells.forEach(cell => {
+            cell.style.display = 'table-cell';
+            cell.style.visibility = 'visible';
+            cell.style.width = 'auto';
+            cell.style.padding = '';
+            cell.style.border = '';
+        });
+        
+        // Show headers by aria-label
+        const allHeaders = document.querySelectorAll('th');
+        allHeaders.forEach(header => {
+            if (header.getAttribute('aria-label') === 'criterion ratings' || 
+                header.textContent.includes('Ratings') ||
+                header.textContent.includes('Assessment')) {
+                header.style.display = 'table-cell';
+                header.style.visibility = 'visible';
+            }
+        });
+        
+        // Show cells with aria-label containing "ratings"
+        const allCells = document.querySelectorAll('td');
+        allCells.forEach(cell => {
+            const ariaLabel = cell.getAttribute('aria-label');
+            if (ariaLabel && ariaLabel.includes('ratings')) {
+                cell.style.display = 'table-cell';
+                cell.style.visibility = 'visible';
+                cell.style.width = 'auto';
+            }
+        });
+        
+        console.log('Showed all comment boxes and Ratings column');
+    }
+
+    // Track which student we're currently grading
+    function trackCurrentStudent() {
+        const observer = new MutationObserver(() => {
+            const studentSelect = document.querySelector('#combo_box_container select, #students_selectmenu-button');
+            if (studentSelect) {
+                const newStudentId = getStudentId();
+                if (newStudentId && newStudentId !== currentStudentId) {
+                    console.log('Student changed from', currentStudentId, 'to', newStudentId);
+                    // Save pending grades before switching
+                    if (currentStudentId && Object.keys(pendingGrades).length > 0) {
+                        saveAllGrades();
+                    }
+                    currentStudentId = newStudentId;
+                    pendingGrades = {};
+                }
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        currentStudentId = getStudentId();
+    }
+
+    // Get current student ID from URL or DOM
+    function getStudentId() {
+        // Try URL first
+        const urlMatch = window.location.href.match(/student_id=(\d+)/);
+        if (urlMatch) return urlMatch[1];
+        
+        // Try from combo box
+        const select = document.querySelector('#combo_box_container select');
+        if (select && select.value) return select.value;
+        
+        return null;
+    }
+
+    // Get assignment ID from ENV or URL
+    function getAssignmentId() {
+        if (window.ENV && window.ENV.assignment_id) {
+            return window.ENV.assignment_id;
+        }
+        
+        const urlMatch = window.location.href.match(/assignments\/(\d+)/);
+        if (urlMatch) return urlMatch[1];
+        
+        return null;
+    }
+
+    // Get course ID from ENV or URL
+    function getCourseId() {
+        if (window.ENV && window.ENV.course_id) {
+            return window.ENV.course_id;
+        }
+        
+        const urlMatch = window.location.href.match(/courses\/(\d+)/);
+        if (urlMatch) return urlMatch[1];
+        
+        return null;
+    }
+
+    // Save all pending grades by clicking the Save button
+    function saveAllGrades() {
+        if (Object.keys(pendingGrades).length === 0) {
+            console.log('No pending grades to save');
+            return;
+        }
+        
+        console.log('Saving grades for student:', getStudentId(), pendingGrades);
+        
+        // Find and click the Save button
+        const saveButton = document.querySelector('.save_rubric_button, button');
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const actualSaveButton = buttons.find(btn => 
+            btn.textContent.trim() === 'Save' && 
+            btn.offsetParent !== null &&
+            !btn.disabled
+        );
+        
+        if (actualSaveButton) {
+            console.log('Clicking Save button');
+            actualSaveButton.click();
+            
+            // Clear pending grades after save
+            pendingGrades = {};
+            
+            // Visual feedback
+            showSaveNotification('Grades saved ✓');
+            
+            // Don't try to re-open rubric - let it close and reopen naturally
+        } else {
+            console.error('Save button not found!');
+            showSaveNotification('⚠️ Could not save - Save button not found');
+        }
+    }
+
+    // Add toggle button for comments
+    function addCommentToggleButton() {
+        // Create toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.textContent = 'Show Comments';
+        toggleBtn.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #4b2e83 0%, #5a3d94 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 99999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+        `;
+        
+        let commentsVisible = false;
+        
+        toggleBtn.addEventListener('click', () => {
+            commentsVisible = !commentsVisible;
+            
+            if (commentsVisible) {
+                document.body.classList.add('show-comments');
+                showComments();
+                toggleBtn.textContent = 'Hide Comments';
+                toggleBtn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            } else {
+                document.body.classList.remove('show-comments');
+                hideComments();
+                toggleBtn.textContent = 'Show Comments';
+                toggleBtn.style.background = 'linear-gradient(135deg, #4b2e83 0%, #5a3d94 100%)';
+            }
+        });
+        
+        toggleBtn.addEventListener('mouseenter', () => {
+            toggleBtn.style.transform = 'translateY(-2px)';
+            toggleBtn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+        });
+        
+        toggleBtn.addEventListener('mouseleave', () => {
+            toggleBtn.style.transform = 'translateY(0)';
+            toggleBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        });
+        
+        document.body.appendChild(toggleBtn);
+    }
+
+    // Show temporary save notification
+    function showSaveNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #4b2e83 0%, #5a3d94 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 99999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        `;
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s';
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
+
+    // Automatically open rubric (only when needed)
+    function autoOpenRubric() {
+        // Wait a bit for Canvas to settle after save
+        setTimeout(() => {
+            const viewRubricButtons = document.querySelectorAll('button, a');
+            let clicked = false;
+            
+            viewRubricButtons.forEach(btn => {
+                if (clicked) return;
+                
+                const text = btn.textContent.trim();
+                if ((text === 'View Rubric' || text === 'Show Rubric') && btn.offsetParent !== null) {
+                    console.log('Auto-clicking "View Rubric" button');
+                    btn.click();
+                    clicked = true;
+                }
+            });
+            
+            // Ensure rubric containers are visible
+            const rubricFull = document.getElementById('rubric_full');
+            if (rubricFull && rubricFull.style.display === 'none') {
+                rubricFull.style.display = 'block';
+                rubricFull.style.visibility = 'visible';
+            }
+            
+            const rubricSummary = document.getElementById('rubric_summary_container');
+            if (rubricSummary && rubricSummary.style.display === 'none') {
+                rubricSummary.style.display = 'block';
+                rubricSummary.style.visibility = 'visible';
+            }
+        }, 100);
+    }
+
+    // Wait for element to appear
+    function waitForElement(selector, timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            const startTime = Date.now();
+            
+            const checkExist = setInterval(() => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    clearInterval(checkExist);
+                    resolve(element);
+                } else if (Date.now() - startTime > timeout) {
+                    clearInterval(checkExist);
+                    reject('Timeout waiting for element');
+                }
+            }, 100);
+        });
+    }
+
+    // Get all grade input fields (supports both old and new rubric)
+    function getGradeInputs() {
+        // Try React inputs first
+        let inputs = Array.from(document.querySelectorAll('.react-rubric-cell input[type="text"]'));
+        
+        // Fallback to old rubric format
+        if (inputs.length === 0) {
+            inputs = Array.from(document.querySelectorAll('.criterion_points:not([readonly])'));
+        }
+        
+        // Filter out non-visible inputs
+        inputs = inputs.filter(input => {
+            const rect = input.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+        });
+        
+        return inputs;
+    }
+
+    // Get criterion ID from input element
+    function getCriterionId(input) {
+        // Try to find criterion ID from parent elements
+        let element = input;
+        for (let i = 0; i < 10; i++) {
+            if (!element) break;
+            
+            // Check for data attribute
+            if (element.dataset && element.dataset.criterionId) {
+                return element.dataset.criterionId;
+            }
+            
+            // Check for ID attribute with criterion pattern
+            if (element.id && element.id.includes('criterion_')) {
+                return element.id.replace('criterion_', '');
+            }
+            
+            // Check for class with criterion pattern
+            const classMatch = element.className.match(/criterion[_-](\w+)/);
+            if (classMatch) {
+                return classMatch[1];
+            }
+            
+            element = element.parentElement;
+        }
+        
+        // Fallback: use input index as ID
+        const inputs = getGradeInputs();
+        const index = inputs.indexOf(input);
+        return `criterion_${index}`;
+    }
+
+    // Get current focused input index
+    function getCurrentInputIndex() {
+        const inputs = getGradeInputs();
+        const focused = document.activeElement;
+        return inputs.indexOf(focused);
+    }
+
+    // Move to next grade input
+    function moveToNextInput() {
+        const inputs = getGradeInputs();
+        if (inputs.length === 0) return;
+        
+        const currentIndex = getCurrentInputIndex();
+        
+        if (currentIndex === -1) {
+            // Nothing focused, go to first
+            focusInput(inputs[0]);
+        } else if (currentIndex < inputs.length - 1) {
+            // Save current, move to next
+            savePendingGrade(inputs[currentIndex]);
+            focusInput(inputs[currentIndex + 1]);
+        } else {
+            // At last input, save all and go to comment
+            savePendingGrade(inputs[currentIndex]);
+            saveAllGrades();
+            const commentBox = document.querySelector('textarea[placeholder*="omment"], textarea');
+            if (commentBox) commentBox.focus();
+        }
+    }
+
+    // Move to previous grade input
+    function moveToPrevInput() {
+        const inputs = getGradeInputs();
+        if (inputs.length === 0) return;
+        
+        const currentIndex = getCurrentInputIndex();
+        
+        if (currentIndex > 0) {
+            savePendingGrade(inputs[currentIndex]);
+            focusInput(inputs[currentIndex - 1]);
+        }
+    }
+
+    // Jump to specific input by number
+    function jumpToInput(number) {
+        const inputs = getGradeInputs();
+        const index = number - 1;
+        
+        if (index >= 0 && index < inputs.length) {
+            // Save current input if any
+            const currentIndex = getCurrentInputIndex();
+            if (currentIndex !== -1) {
+                savePendingGrade(inputs[currentIndex]);
+            }
+            
+            focusInput(inputs[index]);
+        }
+    }
+
+    // Focus and select an input
+    function focusInput(input) {
+        if (!input) return;
+        
+        input.focus();
+        input.select();
+        
+        // Scroll into view if needed
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Visual feedback
+        const parent = input.closest('.react-rubric-cell, .points_form') || input.parentElement;
+        if (parent) {
+            const originalBg = parent.style.backgroundColor;
+            parent.style.backgroundColor = 'rgba(75, 46, 131, 0.1)';
+            parent.style.transition = 'background-color 0.3s';
+            
+            setTimeout(() => {
+                parent.style.backgroundColor = originalBg;
+            }, 500);
+        }
+    }
+
+    // Save grade to pending grades object
+    function savePendingGrade(input) {
+        if (!input || !input.value) return;
+        
+        const criterionId = getCriterionId(input);
+        const points = parseFloat(input.value);
+        
+        if (!isNaN(points)) {
+            pendingGrades[criterionId] = points;
+            console.log('Saved to pending:', criterionId, points);
+            
+            // Visual feedback
+            const parent = input.closest('.react-rubric-cell, .points_form') || input.parentElement;
+            if (parent) {
+                const originalBg = parent.style.backgroundColor;
+                parent.style.backgroundColor = '#d4edda';
+                parent.style.transition = 'background-color 0.3s';
+                
+                setTimeout(() => {
+                    parent.style.backgroundColor = originalBg;
+                }, 500);
+            }
+        }
+    }
+
+    // Navigate to next/previous student with save
+    function navigateStudent(direction) {
+        // Remember which problem was focused
+        const currentIndex = getCurrentInputIndex();
+        console.log('Current problem index before navigation:', currentIndex);
+        
+        // Save all pending grades first
+        const inputs = getGradeInputs();
+        inputs.forEach(input => {
+            if (input.value) {
+                savePendingGrade(input);
+            }
+        });
+        
+        // Save immediately before navigation
+        if (Object.keys(pendingGrades).length > 0) {
+            saveAllGrades();
+            
+            // Wait for save to complete before navigating
+            setTimeout(() => {
+                if (direction === 'next') {
+                    document.getElementById('next-student-button')?.click();
+                } else {
+                    document.getElementById('prev-student-button')?.click();
+                }
+                
+                // Re-open rubric and focus same problem after navigation
+                setTimeout(() => {
+                    autoOpenRubric();
+                    
+                    // Wait a bit more for rubric to fully render
+                    setTimeout(() => {
+                        if (currentIndex !== -1) {
+                            const newInputs = getGradeInputs();
+                            if (newInputs[currentIndex]) {
+                                console.log('Re-focusing problem index:', currentIndex);
+                                focusInput(newInputs[currentIndex]);
+                            }
+                        }
+                    }, 500);
+                }, 800);
+            }, 1000); // Wait 1 second for save to process
+        } else {
+            // No grades to save, navigate immediately
+            if (direction === 'next') {
+                document.getElementById('next-student-button')?.click();
+            } else {
+                document.getElementById('prev-student-button')?.click();
+            }
+            
+            // Re-open rubric and focus same problem after navigation
+            setTimeout(() => {
+                autoOpenRubric();
+                
+                // Wait a bit more for rubric to fully render
+                setTimeout(() => {
+                    if (currentIndex !== -1) {
+                        const newInputs = getGradeInputs();
+                        if (newInputs[currentIndex]) {
+                            console.log('Re-focusing problem index:', currentIndex);
+                            focusInput(newInputs[currentIndex]);
+                        }
+                    }
+                }, 500);
+            }, 800);
+        }
+    }
+
+    // Setup keyboard shortcuts
+    function setupHotkeys() {
+        console.log('Setting up hotkeys...');
+        
+        document.addEventListener('keydown', function(e) {
+            const inTextarea = e.target.tagName === 'TEXTAREA';
+            const inInput = e.target.tagName === 'INPUT';
+            const inGradeInput = inInput && getGradeInputs().includes(e.target);
+            
+            const key = e.key.toLowerCase();
+            
+            // Arrow keys ALWAYS work as hotkeys when in grade input
+            if (inGradeInput) {
+                switch(key) {
+                    case 'arrowdown':
+                    case 'arrowup':
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (key === 'arrowdown') {
+                            moveToNextInput();
+                        } else {
+                            moveToPrevInput();
+                        }
+                        return false;
+                        
+                    case 'arrowright':
+                    case 'arrowleft':
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (key === 'arrowright') {
+                            navigateStudent('next');
+                        } else {
+                            navigateStudent('prev');
+                        }
+                        return false;
+                        
+                    case 'enter':
+                        e.preventDefault();
+                        e.stopPropagation();
+                        moveToNextInput();
+                        return false;
+                }
+            }
+            
+            // Navigation hotkeys (work everywhere except textareas)
+            if (!inTextarea) {
+                switch(key) {
+                    case 'arrowright':
+                    case 'j':
+                        if (!inGradeInput) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigateStudent('next');
+                        }
+                        return false;
+                        
+                    case 'arrowleft':
+                    case 'k':
+                        if (!inGradeInput) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigateStudent('prev');
+                        }
+                        return false;
+                        
+                    case 'arrowdown':
+                    case 'n':
+                        if (!inGradeInput) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            moveToNextInput();
+                        }
+                        return false;
+                        
+                    case 'arrowup':
+                    case 'p':
+                        if (!inGradeInput) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            moveToPrevInput();
+                        }
+                        return false;
+                        
+                    case 'c':
+                        if (!inGradeInput) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Toggle comments instead of focusing
+                            const toggleBtn = document.querySelector('button');
+                            const buttons = Array.from(document.querySelectorAll('button'));
+                            const commentToggle = buttons.find(btn => 
+                                btn.textContent.includes('Show Comments') || btn.textContent.includes('Hide Comments')
+                            );
+                            if (commentToggle) {
+                                commentToggle.click();
+                                // If comments are now shown, focus the comment box
+                                setTimeout(() => {
+                                    if (document.body.classList.contains('show-comments')) {
+                                        const commentBox = document.querySelector('textarea[placeholder*="omment"], textarea');
+                                        if (commentBox) commentBox.focus();
+                                    }
+                                }, 100);
+                            }
+                        }
+                        return false;
+                }
+                
+                // Number keys 1-9
+                if (!inGradeInput && key >= '1' && key <= '9') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    jumpToInput(parseInt(key));
+                    return false;
+                }
+            }
+            
+        }, true); // Capture phase
+        
+        console.log('Hotkeys active!');
+    }
+
+    // Setup auto-save on blur
+    function setupAutoSave() {
+        const observer = new MutationObserver(() => {
+            const inputs = getGradeInputs();
+            inputs.forEach(input => {
+                if (!input.dataset.autoSaveSetup) {
+                    input.dataset.autoSaveSetup = 'true';
+                    
+                    input.addEventListener('blur', function() {
+                        savePendingGrade(this);
+                    });
+                    
+                    input.addEventListener('focus', function() {
+                        this.select();
+                    });
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Initial setup
+        getGradeInputs().forEach(input => {
+            if (!input.dataset.autoSaveSetup) {
+                input.dataset.autoSaveSetup = 'true';
+                
+                input.addEventListener('blur', function() {
+                    savePendingGrade(this);
+                });
+                
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+            }
+        });
+    }
+
+    // Watch for rubric re-renders
+    function observeRubricChanges() {
+        const observer = new MutationObserver(() => {
+            // Re-setup event listeners after React re-renders
+            setupAutoSave();
+            autoOpenRubric();
+            
+            // Re-hide comments if they're supposed to be hidden
+            if (!document.body.classList.contains('show-comments')) {
+                hideComments();
+            }
+        });
+        
+        const rubricContainer = document.querySelector('#right_side, #rightside_inner');
+        if (rubricContainer) {
+            observer.observe(rubricContainer, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+
+    // Show keyboard shortcuts hint
+    function showKeyboardHint() {
+        const hint = document.createElement('div');
+        hint.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            z-index: 99999;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            max-width: 320px;
+        `;
+        
+        hint.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 12px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px;">
+                ⌨️ SpeedGrader Shortcuts
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">↓</kbd>
+                <span>Next problem</span>
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">↑</kbd>
+                <span>Previous problem</span>
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">1-9</kbd>
+                <span>Jump to problem #</span>
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">↵</kbd>
+                <span>Save & next problem</span>
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">← →</kbd>
+                <span>Prev/next student</span>
+            </div>
+            <div style="margin: 8px 0; display: flex; align-items: center;">
+                <kbd style="background: #1a252f; padding: 4px 8px; border-radius: 4px; margin-right: 10px; min-width: 28px; text-align: center; font-weight: 600;">C</kbd>
+                <span>Toggle comments</span>
+            </div>
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px; color: rgba(255,255,255,0.8);">
+                ✓ Silent background saving<br>
+                ✓ Click anywhere to dismiss
+            </div>
+        `;
+        
+        document.body.appendChild(hint);
+        
+        // Auto-hide after 15 seconds
+        setTimeout(() => {
+            hint.style.opacity = '0';
+            hint.style.transition = 'opacity 1s';
+            setTimeout(() => hint.remove(), 1000);
+        }, 15000);
+        
+        // Click to dismiss
+        hint.addEventListener('click', () => {
+            hint.style.opacity = '0';
+            hint.style.transition = 'opacity 0.3s';
+            setTimeout(() => hint.remove(), 300);
+        });
+    }
+
+    // Start the script
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
